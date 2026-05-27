@@ -1,66 +1,60 @@
-import streamlit as st 
-import pandas as pd 
+import streamlit as st
+import streamlit.components.v1 as components
+from google import genai
 
-st.title("My First Streamlit App")
-st.header("Welcome to the dashboard")
-st.write("This is a simple demonstration of Streamlit capabilities")
+# Configure Gemini
+client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-## Creating a Simple Streamlit Chatbot
-def initialize_session_state():
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+st.set_page_config(layout="wide")
 
-def main():
-    st.title("Simple Chatbot")
-    
-    initialize_session_state()
+# Load HTML app
+with open("studybuddy.html", "r", encoding="utf-8") as f:
+    html_data = f.read()
 
-    # Display chat messages from history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+# Show HTML UI
+components.html(html_data, height=900, scrolling=True)
 
-    # Chat input
-    if prompt := st.chat_input("What's on your mind?"):
-        # Display user message
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Add user message to history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Add simple bot response
-        response = f"You said: {prompt}"
-        
-        # Display bot message
-        with st.chat_message("assistant"):
-            st.write(response)
-        
-        # Add bot message to history
-        st.session_state.messages.append({"role": "assistant", "content": response})
+st.divider()
 
-if __name__ == "__main__":
-    main()
+# REAL Gemini chatbot
+st.title("Real AI Study Tutor")
 
-# Sample DataFrame
-df = pd.DataFrame({
-    'Month': ['January', 'February', 'March', 'January'],
-    'Price': [1000, 1500, 2000, 1200]
-})
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# Add sidebar
-st.sidebar.header("Filters")
+# Show old messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
 
-# Add dropdown
-selected_month = st.sidebar.selectbox(
-    "Select Month",
-    options=df['Month'].unique()
-)
+# Chat input
+prompt = st.chat_input("Ask your AI tutor...")
 
-# Add slider
-price_range = st.sidebar.slider(
-    "Select Price Range",
-    min_value=0,
-    max_value=3000,
-    value=(0, 3000)
-)
+if prompt:
+
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt
+    })
+
+    with st.chat_message("user"):
+        st.write(prompt)
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+
+        ai_reply = response.text
+
+    except Exception as e:
+        ai_reply = str(e)
+
+    with st.chat_message("assistant"):
+        st.write(ai_reply)
+
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": ai_reply
+    })
