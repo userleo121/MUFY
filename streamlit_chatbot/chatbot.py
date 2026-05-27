@@ -5,7 +5,10 @@ from google import genai
 # Configure Gemini
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="StudyBuddy Match", 
+    page_icon="📚", 
+    layout="wide")
 
 # Load HTML app
 with open("studybuddy.html", "r", encoding="utf-8") as f:
