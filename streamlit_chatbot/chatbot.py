@@ -1,12 +1,16 @@
 import streamlit as st
 from google import genai
+import os
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 st.set_page_config(page_title="StudyBuddy Match", page_icon="📚", layout="wide")
 
-with open("studybuddy.html", "r", encoding="utf-8") as f:
-    html_src = f.read()
+
+html_path = os.path.join(os.path.dirname(__file__), "studybuddy.html")
+
+with open(html_path, "r", encoding="utf-8") as f:
+    html_code = f.read()
 
 # ── Patch 1: inject the API key so the HTML can call Gemini directly ──
 # Replace the empty key initialisation with the real key from secrets
