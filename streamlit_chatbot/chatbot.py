@@ -1,63 +1,36 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from google import genai
 
-# Configure Gemini
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-st.set_page_config(
-    page_title="StudyBuddy Match", 
-    page_icon="📚", 
-    layout="wide")
+st.set_page_config(page_title="StudyBuddy Match", page_icon="📚", layout="wide")
 
-# Load HTML app
 with open("studybuddy.html", "r", encoding="utf-8") as f:
-    html_data = f.read()
+    html_src = f.read()
 
-# Show HTML UI
-components.html(html_data, height=900, scrolling=True)
+# ── Patch 1: inject the API key so the HTML can call Gemini directly ──
+# Replace the empty key initialisation with the real key from secrets
+html_src = html_src.replace(
+    'let geminiApiKey = localStorage.getItem("gemini_api_key") || "";',
+    f'let geminiApiKey = "{st.secrets["GEMINI_API_KEY"]}";'
+)
 
-st.divider()
+# ── Patch 2: upgrade model to gemini-2.5-flash (higher free quota) ──
+html_src = html_src.replace(
+    "gemini-2.0-flash",
+    "gemini-2.5-flash"
+)
 
-# REAL Gemini chatbot
-st.title("Real AI Study Tutor")
+# ── Patch 3: hide the API key banner entirely (key is baked in) ──
+html_src = html_src.replace(
+    "// Show API key banner if key not set\n  const banner=document.getElementById(\"api-key-banner\");\n  banner.classList.toggle(\"visible\", !geminiApiKey);",
+    "document.getElementById(\"api-key-banner\").classList.remove(\"visible\");"
+)
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# ── Patch 4: skip the key-check gate in the send handler ──
+html_src = html_src.replace(
+    '    // Gemini tutor\n    if(!geminiApiKey){\n      document.getElementById("api-key-banner").classList.add("visible");\n      chatInput.value=txt; chatSend.disabled=false; return;\n    }\n    tutorMessages.push({role:"user",text:txt});',
+    '    // Gemini tutor (key injected server-side)\n    tutorMessages.push({role:"user",text:txt});'
+)
 
-# Show old messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
-
-# Chat input
-prompt = st.chat_input("Ask your AI tutor...")
-
-if prompt:
-
-    st.session_state.messages.append({
-        "role": "user",
-        "content": prompt
-    })
-
-    with st.chat_message("user"):
-        st.write(prompt)
-
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt
-        )
-
-        ai_reply = response.text
-
-    except Exception as e:
-        ai_reply = str(e)
-
-    with st.chat_message("assistant"):
-        st.write(ai_reply)
-
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": ai_reply
-    })
+st.components.v1.html(html_src, height=900, scrolling=True)
